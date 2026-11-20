@@ -1,0 +1,19 @@
+{
+  "key.grubie_companion.panel": "Панель Grubie",
+  "grubie_companion.pause.button": "Grubie",
+  "grubie_companion.panel.title": "Grubie Launcher",
+  "grubie_companion.panel.offline": "Немає зв'язку з Grubie Launcher",
+  "grubie_companion.panel.invites": "Запрошення",
+  "grubie_companion.panel.noInvites": "Нових запрошень немає",
+  "grubie_companion.panel.accept": "Прийняти",
+  "grubie_companion.panel.host": "Грати разом",
+  "grubie_companion.panel.notHosting": "Зараз ви не відкриваєте світ чи сервер друзям",
+  "grubie_companion.panel.noGuests": "Поки ніхто не під'єднався",
+  "grubie_companion.panel.guests": "Гравців: %s",
+  "grubie_companion.panel.more": "І ще %s",
+  "grubie_companion.panel.kick": "Вигнати",
+  "grubie_companion.transport.direct": "P2P",
+  "grubie_companion.transport.turn": "TURN",
+  "grubie_companion.transport.relay": "через сервер",
+  "grubie_companion.toast.answer": "%s · %s — відповісти"
+}

@@ -1,0 +1,19 @@
+{
+  "key.grubie_companion.panel": "Painel do Grubie",
+  "grubie_companion.pause.button": "Grubie",
+  "grubie_companion.panel.title": "Grubie Launcher",
+  "grubie_companion.panel.offline": "Sem conexão com o Grubie Launcher",
+  "grubie_companion.panel.invites": "Convites",
+  "grubie_companion.panel.noInvites": "Nenhum convite novo",
+  "grubie_companion.panel.accept": "Aceitar",
+  "grubie_companion.panel.host": "Jogar junto",
+  "grubie_companion.panel.notHosting": "Você não está compartilhando nenhum mundo ou servidor agora",
+  "grubie_companion.panel.noGuests": "Ninguém entrou ainda",
+  "grubie_companion.panel.guests": "Jogadores: %s",
+  "grubie_companion.panel.more": "E mais %s",
+  "grubie_companion.panel.kick": "Expulsar",
+  "grubie_companion.transport.direct": "P2P",
+  "grubie_companion.transport.turn": "TURN",
+  "grubie_companion.transport.relay": "via servidor",
+  "grubie_companion.toast.answer": "%s · %s: responder"
+}

@@ -1,0 +1,19 @@
+{
+  "key.grubie_companion.panel": "Grubie paneli",
+  "grubie_companion.pause.button": "Grubie",
+  "grubie_companion.panel.title": "Grubie Launcher",
+  "grubie_companion.panel.offline": "Grubie Launcher ile bağlantı yok",
+  "grubie_companion.panel.invites": "Davetler",
+  "grubie_companion.panel.noInvites": "Yeni davet yok",
+  "grubie_companion.panel.accept": "Kabul et",
+  "grubie_companion.panel.host": "Birlikte oyna",
+  "grubie_companion.panel.notHosting": "Şu anda bir dünya veya sunucu paylaşmıyorsunuz",
+  "grubie_companion.panel.noGuests": "Henüz kimse katılmadı",
+  "grubie_companion.panel.guests": "Oyuncu: %s",
+  "grubie_companion.panel.more": "Ve %s kişi daha",
+  "grubie_companion.panel.kick": "At",
+  "grubie_companion.transport.direct": "P2P",
+  "grubie_companion.transport.turn": "TURN",
+  "grubie_companion.transport.relay": "sunucu üzerinden",
+  "grubie_companion.toast.answer": "%s · %s: yanıtla"
+}

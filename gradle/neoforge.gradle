@@ -1,0 +1,67 @@
+def mcVersion = project.property('minecraft_version')
+def javaRelease = (project.property('java_release') as String).toInteger()
+def adapter = project.property('adapter')
+
+project.ext.loaderName = 'neoforge'
+project.ext.archiveBase = rootProject.property('mod_id').replace('_', '-')
+project.ext.supportedVersions = (project.property('supported_versions') as String).split(',').collect { it.trim() }
+project.ext.releaseJarTask = 'jar'
+
+version = "${rootProject.property('mod_version')}+${project.name}"
+group = rootProject.property('mod_group')
+
+base {
+    archivesName = project.ext.archiveBase
+}
+
+sourceSets.main {
+    java.srcDirs = [
+            rootProject.file('core/src/main/java'),
+            rootProject.file('src/common/java'),
+            rootProject.file("src/mc/${adapter}/java"),
+            rootProject.file('src/neoforge/java'),
+    ]
+    resources.srcDirs = [
+            rootProject.file('src/common/resources'),
+    ]
+}
+
+neoForge {
+    version = project.property('neo_version')
+}
+
+def generateModMetadata = tasks.register('generateModMetadata', ProcessResources) {
+    def props = [
+            mod_id         : rootProject.property('mod_id'),
+            mod_name       : rootProject.property('mod_name'),
+            mod_license    : rootProject.property('mod_license'),
+            mod_version    : rootProject.property('mod_version'),
+            minecraft_range: project.property('neo_minecraft_range'),
+            neo_min        : project.property('neo_min'),
+            loader_header  : project.findProperty('neo_loader_header') ?: '',
+    ]
+    inputs.properties props
+    expand props
+    from rootProject.file('src/neoforge/templates')
+    into layout.buildDirectory.dir('generated/sources/modMetadata')
+}
+sourceSets.main.resources.srcDir generateModMetadata
+
+processResources {
+    def props = [java_release: javaRelease]
+    inputs.properties props
+    filesMatching('*.mixins.json') {
+        expand props
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = javaRelease
+}
+
+jar {
+    from(rootProject.file('LICENSE')) {
+        rename { "LICENSE_${rootProject.property('mod_id')}" }
+    }
+}

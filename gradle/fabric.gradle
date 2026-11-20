@@ -1,0 +1,66 @@
+def remap = project.findProperty('fabric_remap') != 'false'
+def mcVersion = project.property('minecraft_version')
+def javaRelease = (project.property('java_release') as String).toInteger()
+def adapter = project.property('adapter')
+
+project.ext.loaderName = 'fabric'
+project.ext.archiveBase = rootProject.property('mod_id').replace('_', '-')
+project.ext.supportedVersions = (project.property('supported_versions') as String).split(',').collect { it.trim() }
+project.ext.releaseJarTask = remap ? 'remapJar' : 'jar'
+
+version = "${rootProject.property('mod_version')}+${project.name}"
+group = rootProject.property('mod_group')
+
+base {
+    archivesName = project.ext.archiveBase
+}
+
+sourceSets.main {
+    java.srcDirs = [
+            rootProject.file('core/src/main/java'),
+            rootProject.file('src/common/java'),
+            rootProject.file("src/mc/${adapter}/java"),
+            rootProject.file('src/fabric/java'),
+    ]
+    resources.srcDirs = [
+            rootProject.file('src/common/resources'),
+            rootProject.file('src/fabric/resources'),
+    ]
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${mcVersion}"
+    if (remap) {
+        mappings loom.officialMojangMappings()
+        modImplementation "net.fabricmc:fabric-loader:${rootProject.property('fabric_loader_version')}"
+    } else {
+        implementation "net.fabricmc:fabric-loader:${rootProject.property('fabric_loader_version')}"
+    }
+}
+
+processResources {
+    def props = [
+            version        : rootProject.property('mod_version'),
+            mod_id         : rootProject.property('mod_id'),
+            mod_name       : rootProject.property('mod_name'),
+            mod_license    : rootProject.property('mod_license'),
+            minecraft_range: project.property('fabric_minecraft_range'),
+            loader_min     : rootProject.property('fabric_loader_min'),
+            java_release   : javaRelease,
+    ]
+    inputs.properties props
+    filesMatching(['fabric.mod.json', '*.mixins.json']) {
+        expand props
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = javaRelease
+}
+
+jar {
+    from(rootProject.file('LICENSE')) {
+        rename { "LICENSE_${rootProject.property('mod_id')}" }
+    }
+}
