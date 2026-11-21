@@ -1,0 +1,53 @@
+def activeNode = providers.gradleProperty('companion.active').getOrElse('1.21.1-fabric')
+if (!gradle.ext.companionNodes.contains(activeNode)) activeNode = 'none'
+stonecutter.active(activeNode == 'none' ? null : activeNode)
+
+stonecutter.parameters {
+    def parts = current.project.split('-', 2)
+    def loader = parts[1]
+    properties {
+        tags(parts[0], loader)
+    }
+    constants.match(loader, 'fabric', 'forge', 'neoforge')
+    replacements.string(stonecutter.eval(current.version, '>=1.21.11')) {
+        replace('ResourceLocation', 'Identifier')
+    }
+}
+
+def releaseNodes = { rootProject.subprojects.findAll { it.name != 'core' }.sort { it.name } }
+
+tasks.register('collectRelease') {
+    group = 'build'
+    description = 'Copies every release jar into build/release/<mod version>/ with targets.json'
+    dependsOn { releaseNodes().collect { it.ext.companionJar } }
+    doLast {
+        def nodes = releaseNodes()
+        def modVersion = nodes.first().ext.companionModVersion
+        def protocol = nodes.first().ext.companionProtocol as int
+        def out = layout.buildDirectory.dir("release/${modVersion}").get().asFile
+        project.delete(out)
+        out.mkdirs()
+        def files = []
+        nodes.each { node ->
+            def loader = node.ext.companionLoader
+            def mc = node.ext.companionMinecraft
+            def name = "grubie-companion-${modVersion}+${loader}-${mc}.jar"
+            new File(out, name).bytes = node.ext.companionJar.get().asFile.bytes
+            files << [file: name, loader: loader, minecraft: node.ext.companionReleases]
+            def alias = node.ext.companionAliasLoader
+            if (alias) files << [file: name, loader: alias, minecraft: node.ext.companionAliasReleases]
+        }
+        def targets = [mod: modVersion, protocol: protocol, files: files]
+        new File(out, 'targets.json').text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(targets)) + '\n'
+        logger.lifecycle("Release ${modVersion}: ${files.size()} targets from ${nodes.size()} jars in ${out}")
+    }
+}
+
+tasks.register('listNodes') {
+    group = 'help'
+    description = 'Prints every Stonecutter node as JSON for the CI matrix'
+    doLast {
+        def rows = releaseNodes().collect { [node: it.name, loader: it.ext.companionLoader, minecraft: it.ext.companionMinecraft, java: it.ext.companionJava, releases: it.ext.companionReleases] }
+        println groovy.json.JsonOutput.toJson(rows)
+    }
+}

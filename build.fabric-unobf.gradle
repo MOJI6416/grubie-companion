@@ -1,0 +1,12 @@
+plugins {
+    id 'net.fabricmc.fabric-loom'
+}
+
+apply from: rootProject.file('gradle/node.gradle')
+
+dependencies {
+    minecraft "com.mojang:minecraft:${stonecutter.current.version}"
+    implementation "net.fabricmc:fabric-loader:${stonecutter.properties.get('deps.fabric_loader')}"
+}
+
+ext.companionJar = companionReleaseJar('jar')

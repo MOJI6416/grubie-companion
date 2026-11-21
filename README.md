@@ -1,48 +1,96 @@
 # Grubie Companion
 
-Client mod for Grubie Launcher. It shows friends' invites and messages as in-game toasts, lets the player accept an invite without leaving the game, gives the Play together host a panel with the players and a Kick button, and saves the player's statistics from multiplayer servers so the launcher can count achievements there.
+Client mod for Grubie Launcher. It brings the launcher into the game:
 
-Without the launcher the mod does nothing: it starts only when the game was launched with `GRUBIE_COMPANION_ADDRESS` and `GRUBIE_COMPANION_TOKEN` in the environment.
+- a friends panel on <kbd>G</kbd> (a drawer on the right): online friends, invites, Play Together hosting, voice chat;
+- buttons under the pause menu: open the current world to friends, invite a friend to the current world or server;
+- toasts: messages, invites (<kbd>F7</kbd> accepts), achievements the moment they unlock, a screenshot you just took with "send to a friend";
+- who is talking in Grubie voice chat, your mute state and push-to-talk while the game has focus;
+- the loading stage and, if the game freezes, the stack of the stuck thread with the mods it runs through, so the launcher can tell the player what hung;
+- statistics from multiplayer servers and the current world, so launcher achievements count there too.
 
-## Targets
+The interface is drawn by the mod itself (Rubik, the Grubie colours, rounded panels, shadows, animations) instead of the game's buttons and screens, and looks the same on every supported version.
 
-| Project | Loader | Minecraft | Java |
-|---|---|---|---|
-| `targets/fabric-1.20.1` | Fabric | 1.20, 1.20.1 | 17 |
-| `targets/fabric-1.21.1` | Fabric | 1.21, 1.21.1 | 21 |
-| `targets/neoforge-1.21.1` | NeoForge | 1.21, 1.21.1 | 21 |
-| `targets/fabric-26.3` | Fabric | 26.3 | 25 |
-| `targets/neoforge-26.3` | NeoForge | 26.3 | 25 |
+Without the launcher the mod does nothing: it starts only when the game was launched with `GRUBIE_COMPANION_ADDRESS` and `GRUBIE_COMPANION_TOKEN` in the environment. Fabric API is not needed.
 
-The Fabric jars do not need Fabric API.
+## Supported versions
+
+One jar per Minecraft line and loader. Quilt uses the Fabric jar. The Forge 1.20.1 jar also serves NeoForge 1.20.1.
+
+| Line | Minecraft releases | Fabric | Forge | NeoForge | Java |
+|---|---|---|---|---|---|
+| 1.16.5 | 1.16.5 | ✓ | ✓ | — | 8 |
+| 1.17.1 | 1.17, 1.17.1 | ✓ | ✓ | — | 16 |
+| 1.18.2 | 1.18 – 1.18.2 | ✓ | ✓ | — | 17 |
+| 1.19.2 | 1.19 – 1.19.2 | ✓ | ✓ | — | 17 |
+| 1.19.4 | 1.19.3, 1.19.4 | ✓ | ✓ | — | 17 |
+| 1.20.1 | 1.20, 1.20.1 | ✓ | ✓ | ✓ (Forge jar) | 17 |
+| 1.20.4 | 1.20.2 – 1.20.4 | ✓ | ✓ | ✓ | 17 |
+| 1.20.6 | 1.20.5, 1.20.6 | ✓ | ✓ | ✓ | 21 |
+| 1.21.1 | 1.21, 1.21.1 | ✓ | ✓ | ✓ | 21 |
+| 1.21.4 | 1.21.2 – 1.21.4 | ✓ | ✓ | ✓ | 21 |
+| 1.21.5 | 1.21.5 | ✓ | ✓ | ✓ | 21 |
+| 1.21.8 | 1.21.6 – 1.21.8 | ✓ | ✓ | ✓ | 21 |
+| 1.21.10 | 1.21.9, 1.21.10 | ✓ | ✓ | ✓ | 21 |
+| 1.21.11 | 1.21.11 | ✓ | ✓ | ✓ | 21 |
+| 26.1.2 | 26.1 – 26.1.2 | ✓ | ✓ | ✓ | 25 |
+| 26.2 | 26.2 | ✓ | ✓ | ✓ | 25 |
+| 26.3 | 26.3 | ✓ | ✓ | ✓ | 25 |
+
+The Runtime workflow starts every release a jar claims, on every loader that has a build for it, and fails the jar if the game crashes or the mod does not reach the world.
 
 ## Layout
 
-- `core/` — plain Java without Minecraft: the launcher protocol, the reconnecting socket, the state of toasts and the host panel, the statistics schedule and the snapshot file. Unit tests live here.
-- `src/common/` — Minecraft code shared by every target: mixins, statistics reader, panel rows, translations.
-- `src/mc/<version>/` — the small adapter for one Minecraft line: toasts, screens, joining a server, key mapping, the panel screen.
-- `src/fabric/`, `src/neoforge/` — loader entry points and metadata.
-- `targets/<loader>-<version>/` — one Gradle project per jar. `gradle.properties` there sets the Minecraft version, Java release, adapter and the versions the jar is offered for.
+The project uses [Stonecutter](https://stonecutter.kikugie.dev): one source tree, with version-specific lines behind `//? if` comments, built once per node (`versions/<line>-<loader>`).
 
-A new Minecraft line is a new `src/mc/<version>` adapter plus a target folder.
+- `core/` — plain Java without Minecraft: the launcher protocol and a small JSON reader/writer, the reconnecting socket, the state the launcher pushes, the statistics schedule and the snapshot file. Unit tests live here. It is compiled for Java 16 and copied into every jar.
+- `src/main/java/.../render` — the drawing layer: `Gfx` (the only place that knows how a version draws), `Canvas` (rounded rectangles, borders and soft shadows made from textures generated at the exact pixel size), `Text` (Rubik through STB TrueType from the game's LWJGL, glyphs rasterised at the real pixel size), `Icons` (an atlas of Lucide icons at twelve sizes).
+- `src/main/java/.../ui` — the panel, the pause buttons, toasts and the voice indicator, written once against `Canvas`.
+- `src/main/java/.../mc/Mc.java` — the game calls that change between versions.
+- `src/main/java/.../mixin` — hooks into vanilla classes, the same for every loader: client tick, options (key mappings), pause screen, the toast layer (which draws the overlay above everything), language loading (for Fabric without Fabric API).
+- `src/main/java/.../loader/<loader>` — the loader entry points.
+- `tools/IconAtlas.java` — regenerates `textures/icons.png` from Lucide path data: `java tools/IconAtlas.java src/main/resources/assets/grubie_companion/textures/icons.png`.
+
+Toolchains: Fabric Loom (with remapping up to 1.21.11, without from 26.1), Architectury Loom for every Forge line (it remaps mixins to SRG on old Forge, so no refmap is needed), ModDevGradle for NeoForge, and JvmDowngrader for 1.16.5 (the code is compiled for Java 16 and lowered to Java 8 with the needed API stubs shaded into the jar).
 
 ## Building
 
-JDK 25 is needed to run Gradle; the Java 17/21 targets are compiled with `--release`.
+JDK 25 runs Gradle.
 
 ```
 ./gradlew :core:test
-./gradlew syncToLauncher
+./gradlew collectRelease                          # every jar into build/release/<version>/ with targets.json
+./gradlew collectRelease -Pcompanion.only=fabric  # a part: a loader, a line (1.21.1) or a node (1.21.1-fabric)
+./gradlew listNodes                               # the node list as JSON
 ```
 
-`syncToLauncher` builds every target and copies the jars with `manifest.json` into `../launcher/resources/companion`. The launcher picks the jar by loader and Minecraft version from that manifest, puts it into the instance `mods` folder at launch when the instance has "Add the companion mod" on, and removes it when the switch is off.
+The active version for the IDE is `1.21.1-fabric`; switch it with the Stonecutter IntelliJ plugin or `-Pcompanion.active=<node>`.
+
+## CI
+
+- **Build** — core tests and every jar, in four parallel groups, merged into one `companion-release` artifact (`build/release/<version>/`).
+- **Runtime** — weekly and on demand: runs the real client headless ([mc-runtime-test](https://github.com/headlesshq/mc-runtime-test)) for each jar and release, with a stand-in launcher (`scripts/ci-bridge.py`) that sends friends, voice and toasts. The mod connects, renders the toasts and the voice indicator, opens the panel twice and reports `selftest`. The job fails if the game crashes or the mod never reports being in the world.
+- **Watch Minecraft releases** — every six hours.
+- **Release draft** — on a `v*` tag: builds everything and uploads the jars and `targets.json` to a draft GitHub release.
+
+## New Minecraft versions
+
+`scripts/watch-minecraft.mjs` compares Mojang's release list with the versions the nodes claim.
+
+1. **A patch of a supported line** (for example 26.3.1): it is added to that node's `mod.releases`. The jar ranges already cover it.
+2. **A new line** (for example 26.4): a node is added with the loaders that already have a build for it (Fabric meta, Forge promotions, NeoForge maven) and their newest versions. The Forge node gets its `versions/<line>-forge/gradle.properties`.
+3. The workflow builds the new targets. If they compile, it opens a pull request `Support Minecraft <version>`. If they do not, it opens an issue with the compiler errors.
+
+To finish a new line by hand: find what changed with `javap` on the remapped jar in `~/.gradle/caches/fabric-loom/minecraftMaven`, add `//? if >=<version>` branches (mostly in `Gfx`, `Mc`, `PanelScreen`, `GrubieButton` and the mixins), run the Runtime workflow on the branch, merge, then release.
+
+## Releasing
+
+A `v<version>` tag builds every jar into a draft GitHub release. Grubie Launcher does not bundle the mod: it downloads the jar for the instance's version and loader from the Grubie servers and checks it against a signed list before the game starts.
 
 ## Protocol
 
-One TCP connection to `127.0.0.1`, one JSON object per line.
+[docs/PROTOCOL.md](docs/PROTOCOL.md).
 
-Game to launcher: `hello` (token, mod, minecraft, loader), `accept` (toast id), `kick` (guest key).
+## Licenses
 
-Launcher to game: `welcome`, `toasts` (current toasts), `host` (whether this instance is sharing and who is in), `connect` (address to join right now).
-
-Server statistics go to `GRUBIE_COMPANION_STATS_DIR` as `<sha1(server, uuid)>.json`: server address, player, time, the statistics the server sent to the client and the advancement progress.
+GPL-3.0-only. The jar also carries [Rubik](https://github.com/googlefonts/rubik) (SIL Open Font License 1.1, `assets/grubie_companion/font/ofl.txt`) and icons from [Lucide](https://lucide.dev) (ISC, `assets/grubie_companion/textures/license-lucide.txt`).

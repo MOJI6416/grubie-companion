@@ -1,0 +1,30 @@
+plugins {
+    id 'net.fabricmc.fabric-loom-remap'
+    id 'xyz.wagyourtail.jvmdowngrader'
+}
+
+apply from: rootProject.file('gradle/node.gradle')
+
+dependencies {
+    minecraft "com.mojang:minecraft:${stonecutter.current.version}"
+    mappings loom.officialMojangMappings()
+    modImplementation "net.fabricmc:fabric-loader:${stonecutter.properties.get('deps.fabric_loader')}"
+}
+
+if (stonecutter.eval(stonecutter.current.version, '<1.17')) {
+    def downgrade = tasks.register('downgradeRelease', xyz.wagyourtail.jvmdg.gradle.task.DowngradeJar) {
+        inputFile = tasks.named('jar').flatMap { it.archiveFile }
+        downgradeTo = JavaVersion.VERSION_1_8
+        classpath = sourceSets.main.compileClasspath
+        archiveClassifier = 'java8'
+    }
+    def shade = tasks.register('shadeRelease', xyz.wagyourtail.jvmdg.gradle.task.ShadeJar) {
+        inputFile = downgrade.flatMap { it.archiveFile }
+        archiveClassifier = 'java8-shaded'
+    }
+    tasks.named('remapJar') {
+        dependsOn shade
+        inputFile = shade.flatMap { it.archiveFile }
+    }
+}
+ext.companionJar = companionReleaseJar('remapJar')

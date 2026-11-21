@@ -1,0 +1,77 @@
+evaluationDependsOn(':core')
+
+def loader = stonecutter.current.project.split('-', 2)[1]
+def mc = stonecutter.current.version
+def javaRelease =
+        stonecutter.eval(mc, '>=26.1') ? 25 :
+        stonecutter.eval(mc, '>=1.20.5') ? 21 :
+        stonecutter.eval(mc, '>=1.18') ? 17 : 16
+def runtimeJava = stonecutter.eval(mc, '<1.17') ? 8 : javaRelease
+
+ext.companionLoader = loader
+ext.companionMinecraft = mc
+ext.companionJava = runtimeJava
+ext.companionModVersion = stonecutter.properties.get('mod.version')
+ext.companionProtocol = stonecutter.properties.get('mod.protocol')
+ext.companionReleases = stonecutter.properties.get('mod.releases').split(',').collect { it.trim() }
+ext.companionAliasLoader = stonecutter.properties.get('mod.alias_loader')
+ext.companionAliasReleases = stonecutter.properties.get('mod.alias_releases').split(',').collect { it.trim() }.findAll { it }
+
+version = "${stonecutter.properties.get('mod.version')}+${loader}-${mc}"
+base {
+    archivesName = 'grubie-companion'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compileOnly project(':core')
+}
+
+sourceSets.main.java {
+    ['fabric', 'forge', 'neoforge'].findAll { it != loader }.each { other ->
+        exclude "com/grubielauncher/companion/loader/${other}/**"
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = javaRelease
+    options.compilerArgs += ['-Xmaxerrs', '2000']
+}
+
+def packFormat = stonecutter.properties.get('mod.pack_format').split('\\.').collect { it as int }
+def packRange = packFormat.size() > 1 ? "\"min_format\": [${packFormat[0]}, ${packFormat[1]}], \"max_format\": [${packFormat[0]}, ${packFormat[1]}]" : "\"pack_format\": ${packFormat[0]}"
+
+processResources {
+    def props = [
+            pack     : packRange,
+            id       : stonecutter.properties.get('mod.id'),
+            name     : stonecutter.properties.get('mod.name'),
+            version  : stonecutter.properties.get('mod.version'),
+            minecraft: stonecutter.properties.get('mod.mc_compat'),
+            java     : runtimeJava,
+            mixins   : loader == 'neoforge' ? '\n[[mixins]]\nconfig="grubie_companion.mixins.json"\n' : '',
+    ]
+    inputs.properties props
+    filesMatching(['fabric.mod.json', 'META-INF/mods.toml', 'META-INF/neoforge.mods.toml', '*.mixins.json', 'assets/grubie_companion/version.txt', 'pack.mcmeta']) {
+        expand props
+    }
+    if (loader != 'fabric') exclude 'fabric.mod.json'
+    if (loader == 'fabric' || (loader == 'neoforge' && stonecutter.eval(mc, '>=1.20.5'))) exclude 'META-INF/mods.toml'
+    if (loader != 'neoforge' || stonecutter.eval(mc, '<1.20.5')) exclude 'META-INF/neoforge.mods.toml'
+}
+
+tasks.named('jar') {
+    dependsOn ':core:classes'
+    from(project(':core').sourceSets.main.output)
+    from(rootProject.file('LICENSE')) {
+        rename { 'LICENSE_grubie_companion' }
+    }
+}
+
+ext.companionReleaseJar = { String taskName ->
+    tasks.named(taskName).flatMap { it.archiveFile }
+}

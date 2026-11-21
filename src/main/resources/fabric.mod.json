@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "${id}",
+  "version": "${version}",
+  "name": "${name}",
+  "description": "Grubie Launcher inside the game: friends, invites, Play Together and voice chat over the game.",
+  "authors": ["Grubie Launcher"],
+  "contact": {
+    "homepage": "https://grubielauncher.com",
+    "sources": "https://github.com/MOJI6416/grubie-companion"
+  },
+  "license": "GPL-3.0-only",
+  "icon": "assets/grubie_companion/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["com.grubielauncher.companion.loader.fabric.FabricEntry"]
+  },
+  "mixins": ["grubie_companion.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.14.0",
+    "minecraft": "${minecraft}"
+  }
+}

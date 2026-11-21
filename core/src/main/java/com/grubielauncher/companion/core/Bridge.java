@@ -1,9 +1,5 @@
 package com.grubielauncher.companion.core;
 
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -17,7 +13,7 @@ import java.nio.charset.StandardCharsets;
 
 public final class Bridge {
     public interface Handler {
-        void onMessage(JsonObject message);
+        void onMessage(Json.Obj message);
 
         void onConnected(boolean connected);
     }
@@ -27,7 +23,7 @@ public final class Bridge {
 
     private final String host;
     private final int port;
-    private final JsonObject hello;
+    private final Json.Obj hello;
     private final Handler handler;
     private final Object writeLock = new Object();
     private final Object sleepLock = new Object();
@@ -38,7 +34,7 @@ public final class Bridge {
     private volatile boolean closed;
     private Thread thread;
 
-    public Bridge(String host, int port, JsonObject hello, Handler handler) {
+    public Bridge(String host, int port, Json.Obj hello, Handler handler) {
         this.host = host;
         this.port = port;
         this.hello = hello;
@@ -56,7 +52,7 @@ public final class Bridge {
         return connected;
     }
 
-    public boolean send(JsonObject message) {
+    public boolean send(Json.Obj message) {
         synchronized (writeLock) {
             Writer current = writer;
             if (current == null || !connected) return false;
@@ -119,25 +115,30 @@ public final class Bridge {
         boolean welcomed = false;
         String line;
         while (!closed && (line = readLine(reader, MAX_LINE)) != null) {
-            JsonObject message = parse(line);
+            Json.Obj message = Json.parseObject(line);
             if (message == null) continue;
             String type = Protocol.type(message);
             if ("welcome".equals(type)) {
                 if (!welcomed) {
                     welcomed = true;
                     connected = true;
+                    deliver(message);
                     safeConnected(true);
                 }
                 continue;
             }
             if (!welcomed) continue;
-            try {
-                handler.onMessage(message);
-            } catch (RuntimeException e) {
-                Log.warn("Launcher message failed: " + e);
-            }
+            deliver(message);
         }
         return welcomed;
+    }
+
+    private void deliver(Json.Obj message) {
+        try {
+            handler.onMessage(message);
+        } catch (RuntimeException e) {
+            Log.warn("Launcher message failed: " + e);
+        }
     }
 
     private void safeConnected(boolean value) {
@@ -171,15 +172,6 @@ public final class Bridge {
                 current.close();
             } catch (IOException ignored) {
             }
-        }
-    }
-
-    static JsonObject parse(String line) {
-        try {
-            JsonElement element = JsonParser.parseString(line);
-            return element.isJsonObject() ? element.getAsJsonObject() : null;
-        } catch (RuntimeException e) {
-            return null;
         }
     }
 

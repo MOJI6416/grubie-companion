@@ -1,0 +1,18 @@
+import dev.kikugie.stonecutter.controller.task.StonecutterTaskMutexService
+
+plugins {
+    id 'net.neoforged.moddev'
+}
+
+apply from: rootProject.file('gradle/node.gradle')
+
+neoForge {
+    version = stonecutter.properties.get('deps.neoforge')
+}
+
+tasks.named('createMinecraftArtifacts') {
+    dependsOn('stonecutterGenerate')
+    usesService(StonecutterTaskMutexService.create(gradle, name))
+}
+
+ext.companionJar = companionReleaseJar('jar')

@@ -1,0 +1,23 @@
+modLoader="javafml"
+loaderVersion="[1,)"
+license="GPL-3.0-only"
+
+[[mods]]
+modId="${id}"
+version="${version}"
+displayName="${name}"
+displayTest="IGNORE_ALL_VERSION"
+logoFile="assets/grubie_companion/icon.png"
+authors="Grubie Launcher"
+displayURL="https://grubielauncher.com"
+description='''
+Grubie Launcher inside the game: friends, invites, Play Together and voice chat over the game.
+'''
+${mixins}
+[[dependencies.${id}]]
+modId="minecraft"
+mandatory=true
+type="required"
+versionRange="${minecraft}"
+ordering="NONE"
+side="CLIENT"

@@ -1,0 +1,18 @@
+plugins {
+    id 'dev.architectury.loom-no-remap'
+}
+
+apply from: rootProject.file('gradle/node.gradle')
+
+loom {
+    forge {
+        mixinConfig 'grubie_companion.mixins.json'
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${stonecutter.current.version}"
+    forge "net.minecraftforge:forge:${stonecutter.properties.get('deps.forge')}"
+}
+
+ext.companionJar = companionReleaseJar('jar')

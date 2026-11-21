@@ -1,31 +1,69 @@
 pluginManagement {
     repositories {
-        maven {
-            name = 'Fabric'
-            url = 'https://maven.fabricmc.net/'
-        }
-        maven {
-            name = 'NeoForged'
-            url = 'https://maven.neoforged.net/releases'
-        }
         mavenCentral()
         gradlePluginPortal()
+        maven { name = 'FabricMC'; url = 'https://maven.fabricmc.net/' }
+        maven { name = 'NeoForged'; url = 'https://maven.neoforged.net/releases/' }
+        maven { name = 'Architectury'; url = 'https://maven.architectury.dev/' }
+        maven { name = 'MinecraftForge'; url = 'https://maven.minecraftforge.net/' }
+        maven { name = 'KikuGie'; url = 'https://maven.kikugie.dev/releases' }
+    }
+    plugins {
+        id 'net.fabricmc.fabric-loom-remap' version '1.19.4'
+        id 'net.fabricmc.fabric-loom' version '1.19.4'
+        id 'dev.architectury.loom' version '1.17.493'
+        id 'dev.architectury.loom-no-remap' version '1.17.493'
+        id 'net.neoforged.moddev' version '2.0.148'
+        id 'xyz.wagyourtail.jvmdowngrader' version '2.0.1'
     }
 }
 
 plugins {
+    id 'dev.kikugie.stonecutter' version '0.10'
     id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
 }
 
-rootProject.name = 'grubie-companion'
+def matrix = [
+        '1.16.5' : ['fabric', 'forge'],
+        '1.17.1' : ['fabric', 'forge'],
+        '1.18.2' : ['fabric', 'forge'],
+        '1.19.2' : ['fabric', 'forge'],
+        '1.19.4' : ['fabric', 'forge'],
+        '1.20.1' : ['fabric', 'forge'],
+        '1.20.4' : ['fabric', 'forge', 'neoforge'],
+        '1.20.6' : ['fabric', 'forge', 'neoforge'],
+        '1.21.1' : ['fabric', 'forge', 'neoforge'],
+        '1.21.4' : ['fabric', 'forge', 'neoforge'],
+        '1.21.5' : ['fabric', 'forge', 'neoforge'],
+        '1.21.8' : ['fabric', 'forge', 'neoforge'],
+        '1.21.10': ['fabric', 'forge', 'neoforge'],
+        '1.21.11': ['fabric', 'forge', 'neoforge'],
+        '26.1.2' : ['fabric', 'forge', 'neoforge'],
+        '26.2'   : ['fabric', 'forge', 'neoforge'],
+        '26.3'   : ['fabric', 'forge', 'neoforge'],
+]
 
-include 'core'
+def only = providers.gradleProperty('companion.only').getOrElse('').split(',').collect { it.trim() }.findAll { it }
 
-file('targets').listFiles()
-        .findAll { it.isDirectory() && new File(it, 'build.gradle').exists() }
-        .collect { it.name }
-        .sort()
-        .each { name ->
-            include name
-            project(":$name").projectDir = file("targets/$name")
+stonecutter {
+    kotlinController = false
+    centralScript = 'build.gradle'
+    create(rootProject) {
+        def included = []
+        matrix.each { String mc, List<String> loaders ->
+            loaders.each { String loader ->
+                def node = "${mc}-${loader}".toString()
+                if (only && !only.any { node == it || mc == it || loader == it }) return
+                def unobf = mc.startsWith('26.')
+                def script = "build.${loader}${unobf && loader != 'neoforge' ? '-unobf' : ''}.gradle"
+                version(node, mc).buildscript(script.toString())
+                included << node
+            }
         }
+        vcsVersion = included.contains('1.21.1-fabric') ? '1.21.1-fabric' : included.first()
+        gradle.ext.companionNodes = included
+    }
+}
+
+rootProject.name = 'grubie-companion'
+include 'core'

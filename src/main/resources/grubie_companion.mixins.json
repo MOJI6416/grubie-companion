@@ -1,0 +1,19 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.grubielauncher.companion.mixin",
+  "compatibilityLevel": "JAVA_8",
+  "client": [
+    "ClientAdvancementsAccessor",
+    "ClientLanguageAccessor",
+    "ClientLanguageMixin",
+    "MinecraftMixin",
+    "OptionsMixin",
+    "OverlayMixin",
+    "PauseScreenMixin",
+    "StatsCounterAccessor"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

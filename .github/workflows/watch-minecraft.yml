@@ -1,0 +1,85 @@
+name: Watch Minecraft releases
+
+on:
+  schedule:
+    - cron: "41 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: watch-minecraft
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: check
+        name: Look for new releases
+        run: |
+          result=$(node scripts/watch-minecraft.mjs --write)
+          echo "$result"
+          echo "changed=$(echo "$result" | jq -r .changed)" >> "$GITHUB_OUTPUT"
+          echo "only=$(echo "$result" | jq -r '.only // ""')" >> "$GITHUB_OUTPUT"
+          echo "latest=$(echo "$result" | jq -r .latest)" >> "$GITHUB_OUTPUT"
+          echo "$result" | jq -r '.changes // [] | map("- \(.kind): \(.release)\(if .loaders then " (" + (.loaders | join(", ")) + ")" else "" end)\(if .reason then " — " + .reason else "" end)") | .[]' > "$RUNNER_TEMP/changes.md"
+      - name: Skip when a branch already exists
+        if: steps.check.outputs.changed == 'true'
+        id: branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          branch="auto/minecraft-${{ steps.check.outputs.latest }}"
+          echo "name=$branch" >> "$GITHUB_OUTPUT"
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then echo "exists=true" >> "$GITHUB_OUTPUT"; else echo "exists=false" >> "$GITHUB_OUTPUT"; fi
+      - uses: actions/setup-java@v4
+        if: steps.check.outputs.changed == 'true' && steps.branch.outputs.exists == 'false'
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: gradle/actions/setup-gradle@v4
+        if: steps.check.outputs.changed == 'true' && steps.branch.outputs.exists == 'false'
+      - id: build
+        name: Build the new targets
+        if: steps.check.outputs.changed == 'true' && steps.branch.outputs.exists == 'false'
+        continue-on-error: true
+        run: ./gradlew collectRelease -Pcompanion.only=${{ steps.check.outputs.only }} --no-daemon 2>&1 | tee "$RUNNER_TEMP/build.log"; exit ${PIPESTATUS[0]}
+      - name: Open a pull request
+        if: steps.build.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "grubie-companion-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "${{ steps.branch.outputs.name }}"
+          git add settings.gradle stonecutter.properties.toml versions
+          git commit -m "build: support Minecraft ${{ steps.check.outputs.latest }}"
+          git push origin "${{ steps.branch.outputs.name }}"
+          {
+            echo "The new targets build. Run the Runtime workflow on this branch before merging, then tag a release."
+            echo
+            cat "$RUNNER_TEMP/changes.md"
+          } > "$RUNNER_TEMP/body.md"
+          gh pr create --title "Support Minecraft ${{ steps.check.outputs.latest }}" --body-file "$RUNNER_TEMP/body.md" --head "${{ steps.branch.outputs.name }}"
+      - name: Open an issue
+        if: steps.build.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="Minecraft ${{ steps.check.outputs.latest }} needs adapter changes"
+          if gh issue list --state open --search "$title in:title" --json number --jq 'length' | grep -qv '^0$'; then exit 0; fi
+          {
+            echo "The new targets do not compile yet. Add the version-specific branches (see README, \"New Minecraft versions\")."
+            echo
+            cat "$RUNNER_TEMP/changes.md"
+            echo
+            echo '```'
+            grep -E "error:|symbol:|FAILED" "$RUNNER_TEMP/build.log" | head -80
+            echo '```'
+          } > "$RUNNER_TEMP/issue.md"
+          gh issue create --title "$title" --body-file "$RUNNER_TEMP/issue.md"

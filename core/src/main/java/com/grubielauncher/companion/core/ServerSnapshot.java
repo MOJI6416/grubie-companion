@@ -1,10 +1,5 @@
 package com.grubielauncher.companion.core;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
-
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
@@ -14,7 +9,9 @@ import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -22,7 +19,6 @@ import java.util.TreeMap;
 
 public final class ServerSnapshot {
     public static final int FORMAT = 1;
-    private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
 
     public record Advancement(boolean done, List<String> criteria) {
     }
@@ -52,7 +48,7 @@ public final class ServerSnapshot {
         }
     }
 
-    public static JsonObject build(
+    public static Json.Obj build(
             String address,
             String serverName,
             Player player,
@@ -60,55 +56,60 @@ public final class ServerSnapshot {
             Map<String, Map<String, Integer>> stats,
             Map<String, Advancement> advancements,
             Instant time) {
-        JsonObject root = new JsonObject();
-        root.addProperty("format", FORMAT);
-        root.addProperty("server", address);
-        if (serverName != null) root.addProperty("serverName", serverName);
-        JsonObject playerJson = new JsonObject();
-        playerJson.addProperty("uuid", player.uuid());
-        playerJson.addProperty("name", player.name());
-        root.add("player", playerJson);
-        root.addProperty("minecraft", minecraft);
-        root.addProperty("time", time.toString());
-
-        JsonObject statsJson = new JsonObject();
-        new TreeMap<>(stats).forEach((type, values) -> {
-            JsonObject category = new JsonObject();
-            new TreeMap<>(values).forEach((key, value) -> {
-                if (value != null && value != 0) category.addProperty(key, value);
-            });
-            if (category.size() > 0) statsJson.add(type, category);
-        });
-        root.add("stats", statsJson);
-
-        JsonObject advancementsJson = new JsonObject();
-        new TreeMap<>(advancements).forEach((id, progress) -> {
-            JsonObject entry = new JsonObject();
-            entry.addProperty("done", progress.done());
-            JsonArray criteria = new JsonArray();
-            progress.criteria().stream().sorted().forEach(criteria::add);
-            entry.add("criteria", criteria);
-            advancementsJson.add(id, entry);
-        });
-        root.add("advancements", advancementsJson);
+        Json.Obj root = new Json.Obj();
+        root.put("format", FORMAT);
+        root.put("server", address);
+        root.put("serverName", serverName);
+        root.put("player", new Json.Obj().put("uuid", player.uuid()).put("name", player.name()));
+        root.put("minecraft", minecraft);
+        root.put("time", time.toString());
+        root.put("stats", statsJson(stats));
+        root.put("advancements", advancementsJson(advancements));
         return root;
     }
 
-    public synchronized boolean write(Path directory, JsonObject snapshot) throws IOException {
-        String address = snapshot.get("server").getAsString();
-        String uuid = snapshot.getAsJsonObject("player").get("uuid").getAsString();
+    public static Map<String, Object> statsJson(Map<String, Map<String, Integer>> stats) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        new TreeMap<>(stats).forEach((type, values) -> {
+            Map<String, Object> category = new LinkedHashMap<>();
+            new TreeMap<>(values).forEach((key, value) -> {
+                if (value != null && value != 0) category.put(key, value);
+            });
+            if (!category.isEmpty()) result.put(type, category);
+        });
+        return result;
+    }
+
+    public static Map<String, Object> advancementsJson(Map<String, Advancement> advancements) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        new TreeMap<>(advancements).forEach((id, progress) -> {
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("done", progress.done());
+            List<Object> criteria = new ArrayList<>(progress.criteria());
+            criteria.sort((a, b) -> ((String) a).compareTo((String) b));
+            entry.put("criteria", criteria);
+            result.put(id, entry);
+        });
+        return result;
+    }
+
+    public synchronized boolean write(Path directory, Json.Obj snapshot) throws IOException {
+        String address = snapshot.string("server", 255);
+        Json.Obj player = snapshot.object("player");
+        String uuid = player == null ? null : player.string("uuid", 64);
+        if (address == null || uuid == null) return false;
         String name = fileName(address, uuid);
 
-        JsonObject comparable = snapshot.deepCopy();
+        Map<String, Object> comparable = new LinkedHashMap<>(snapshot.map());
         comparable.remove("time");
-        String signature = GSON.toJson(comparable);
+        String signature = Json.write(comparable);
         if (signature.equals(lastWritten.get(name))) return false;
 
         Files.createDirectories(directory);
         Path target = directory.resolve(name);
         Path temporary = directory.resolve(name + "." + Long.toHexString(System.nanoTime()) + ".tmp");
         try {
-            Files.writeString(temporary, GSON.toJson(snapshot), StandardCharsets.UTF_8);
+            Files.write(temporary, snapshot.toString().getBytes(StandardCharsets.UTF_8));
             try {
                 Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
             } catch (AtomicMoveNotSupportedException e) {

@@ -1,7 +1,5 @@
 package com.grubielauncher.companion.core;
 
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -25,8 +23,10 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.jupiter.api.Assertions.*;
 
 class CoreTest {
-    private static JsonObject json(String text) {
-        return JsonParser.parseString(text).getAsJsonObject();
+    private static Json.Obj json(String text) {
+        Json.Obj obj = Json.parseObject(text);
+        assertNotNull(obj, text);
+        return obj;
     }
 
     @Test
@@ -56,7 +56,7 @@ class CoreTest {
     void protocolSanitizesToastsAndHost() {
         List<Protocol.ToastItem> toasts = Protocol.toasts(json("""
                 {"t":"toasts","items":[
-                  {"id":"gameInvite:1","kind":"invite","title":"Kituk","body":"line\\nbreak","count":1,"actionable":true},
+                  {"id":"gameInvite:1","kind":"invite","title":"Alex","body":"line\\nbreak","count":1,"actionable":true},
                   {"id":"","title":"x"},
                   {"title":"no id"},
                   {"id":"dm:2","title":"Alex","count":3}
@@ -95,6 +95,12 @@ class CoreTest {
 
         state.apply(json("{\"t\":\"connect\",\"address\":\"127.0.0.1:5000\",\"name\":\"World\"}"));
         assertEquals("World", state.takeConnect().name());
+        assertNull(state.takeConnect());
+        assertFalse(state.place().world());
+
+        state.apply(json("{\"t\":\"place\",\"address\":\"abcd.join.grubielauncher.com\",\"name\":\"kit's world\",\"kind\":\"world\"}"));
+        assertTrue(state.place().world());
+        assertEquals("kit's world", state.place().name());
         assertNull(state.takeConnect());
 
         state.apply(json("{\"t\":\"host\",\"active\":true,\"guests\":[]}"));
@@ -138,7 +144,7 @@ class CoreTest {
         assertNull(ServerSnapshot.normalizeAddress("  "));
 
         ServerSnapshot writer = new ServerSnapshot();
-        JsonObject first = ServerSnapshot.build(
+        Json.Obj first = ServerSnapshot.build(
                 "mc.example.com",
                 "Example",
                 new ServerSnapshot.Player("1b2c3d4e-0000-0000-0000-000000000001", "Steve"),
@@ -149,16 +155,16 @@ class CoreTest {
         assertTrue(writer.write(dir, first));
 
         Path file = dir.resolve(ServerSnapshot.fileName("mc.example.com", "1b2c3d4e-0000-0000-0000-000000000001"));
-        JsonObject saved = json(Files.readString(file));
-        assertEquals(12, saved.getAsJsonObject("stats").getAsJsonObject("minecraft:mined").get("minecraft:stone").getAsInt());
-        assertFalse(saved.getAsJsonObject("stats").getAsJsonObject("minecraft:mined").has("minecraft:dirt"));
-        assertTrue(saved.getAsJsonObject("advancements").getAsJsonObject("minecraft:story/root").get("done").getAsBoolean());
+        Json.Obj saved = json(Files.readString(file));
+        assertEquals(12, saved.object("stats").object("minecraft:mined").integer("minecraft:stone", -1));
+        assertFalse(saved.object("stats").object("minecraft:mined").has("minecraft:dirt"));
+        assertTrue(saved.object("advancements").object("minecraft:story/root").bool("done"));
 
-        JsonObject later = first.deepCopy();
-        later.addProperty("time", "2026-11-20T10:05:00Z");
+        Json.Obj later = json(first.toString());
+        later.put("time", "2026-11-20T10:05:00Z");
         assertFalse(writer.write(dir, later));
 
-        JsonObject changed = ServerSnapshot.build(
+        Json.Obj changed = ServerSnapshot.build(
                 "mc.example.com",
                 "Example",
                 new ServerSnapshot.Player("1b2c3d4e-0000-0000-0000-000000000001", "Steve"),
@@ -184,14 +190,14 @@ class CoreTest {
         try (ServerSocket server = new ServerSocket(0, 4, InetAddress.getLoopbackAddress())) {
             List<String> received = new CopyOnWriteArrayList<>();
             List<Boolean> status = new CopyOnWriteArrayList<>();
-            CountDownLatch gotMessage = new CountDownLatch(1);
+            CountDownLatch gotMessage = new CountDownLatch(2);
             CountDownLatch reconnected = new CountDownLatch(2);
 
             Bridge bridge = new Bridge("127.0.0.1", server.getLocalPort(),
-                    Protocol.hello("0123456789abcdef", "1.0.0", "1.21.1", "fabric"),
+                    Protocol.hello("0123456789abcdef", "2.0.0", "1.21.1", "fabric", List.of("panel")),
                     new Bridge.Handler() {
                         @Override
-                        public void onMessage(JsonObject message) {
+                        public void onMessage(Json.Obj message) {
                             received.add(Protocol.type(message));
                             gotMessage.countDown();
                         }
@@ -206,15 +212,16 @@ class CoreTest {
 
             try (Socket client = server.accept()) {
                 BufferedReader reader = new BufferedReader(new InputStreamReader(client.getInputStream(), StandardCharsets.UTF_8));
-                JsonObject hello = json(reader.readLine());
+                Json.Obj hello = json(reader.readLine());
                 assertEquals("hello", Protocol.type(hello));
-                assertEquals("0123456789abcdef", hello.get("token").getAsString());
+                assertEquals("0123456789abcdef", hello.string("token", 64));
+                assertEquals(2, hello.integer("protocol", 0));
                 OutputStream out = client.getOutputStream();
                 out.write("{\"t\":\"toasts\",\"items\":[]}\n".getBytes(StandardCharsets.UTF_8));
                 out.write("{\"t\":\"welcome\"}\n{\"t\":\"host\",\"active\":false}\n".getBytes(StandardCharsets.UTF_8));
                 out.flush();
                 assertTrue(gotMessage.await(5, TimeUnit.SECONDS));
-                assertEquals(List.of("host"), received);
+                assertEquals(List.of("welcome", "host"), received);
                 assertTrue(bridge.send(Protocol.kick("user:1")));
                 assertEquals("kick", Protocol.type(json(reader.readLine())));
             }
@@ -229,7 +236,76 @@ class CoreTest {
             } finally {
                 bridge.close();
             }
-            assertEquals(List.of(true, false, true), status.subList(0, 3));
+            assertEquals(List.of(true, false, true), List.copyOf(status).subList(0, 3));
         }
+    }
+
+    @Test
+    void jsonParsesWritesAndRejectsGarbage() {
+        Json.Obj obj = json("{\"a\":[1,2.5,\"x\u0041\n\"],\"b\":{\"c\":true,\"d\":null},\"e\":-3e2}");
+        assertEquals(-300, obj.integer("e", 0));
+        assertTrue(obj.object("b").bool("c"));
+        assertEquals("{\"a\":[1,2.5,\"xA\\n\"],\"b\":{\"c\":true,\"d\":null},\"e\":-300}", obj.toString());
+        assertNull(Json.parseObject("[1,2]"));
+        assertNull(Json.parseObject("{\"a\":1} trailing"));
+        assertNull(Json.parseObject("{\"a\":"));
+        assertNull(Json.parseObject("[".repeat(100)));
+        assertEquals("\"\\u2028\"", Json.write(String.valueOf((char) 0x2028)));
+    }
+
+    @Test
+    void protocolReadsV2State() {
+        Protocol.FriendsState friends = Protocol.friends(json("""
+                {"t":"friends","online":[{"id":"u1","name":"Alex","status":"playing","activity":"Остров","joinable":true},{"name":"no id"}],"offline":12}"""));
+        assertEquals(1, friends.online().size());
+        assertTrue(friends.online().get(0).joinable());
+        assertEquals(12, friends.offline());
+        assertTrue(friends.offlineList().isEmpty());
+        Protocol.FriendsState withOffline = Protocol.friends(json("{\"t\":\"friends\",\"online\":[],\"offline\":2,\"offlineList\":[{\"id\":\"u3\",\"name\":\"Pacyk\",\"avatar\":\"u3\"},{\"name\":\"no id\"}]}"));
+        assertEquals(1, withOffline.offlineList().size());
+        assertEquals("Pacyk", withOffline.offlineList().get(0).name());
+
+        Protocol.VoiceState voice = Protocol.voice(json("""
+                {"t":"voice","active":true,"channel":"Builders","muted":true,"ptt":true,"pttKey":"V","members":[{"id":"u1","name":"Alex","speaking":true}]}"""));
+        assertTrue(voice.active());
+        assertTrue(voice.muted());
+        assertEquals("V", voice.pttKey());
+        assertTrue(voice.members().get(0).speaking());
+        assertSame(Protocol.VoiceState.NONE, Protocol.voice(json("{\"t\":\"voice\"}")));
+
+        Protocol.HostState host = Protocol.host(json("""
+                {"t":"host","active":true,"title":"Island","code":"ABCD-EFGH","max":8,"guests":[{"key":"user:1","name":"Steve","transport":"direct","ping":32}],"invited":["Alex"]}"""));
+        assertEquals(32, host.guests().get(0).ping());
+        assertEquals(List.of("Alex"), host.invited());
+        assertEquals("ABCD-EFGH", host.code());
+
+        assertNull(Protocol.avatar(json("{\"t\":\"avatar\",\"id\":\"u1\",\"png\":\"bm90IGEgcG5n\"}")));
+        Protocol.Avatar avatar = Protocol.avatar(json("{\"t\":\"avatar\",\"id\":\"u1\",\"png\":\"iVBORw0KGgoAAAA=\"}"));
+        assertNotNull(avatar);
+        assertEquals("u1", avatar.id());
+
+        Protocol.Result result = Protocol.result(json("{\"t\":\"result\",\"req\":\"r1\",\"ok\":false,\"error\":\"offline\"}"));
+        assertEquals("offline", result.error());
+        assertEquals(2, Protocol.welcome(json("{\"t\":\"welcome\",\"protocol\":2,\"selfName\":\"Steve\"}")).protocol());
+        assertEquals(1, Protocol.welcome(json("{\"t\":\"welcome\"}")).protocol());
+    }
+
+    @Test
+    void stateQueuesAvatarsAndResultsAndClearsOnDisconnect() {
+        CompanionState state = new CompanionState();
+        state.setConnected(true);
+        state.apply(json("{\"t\":\"welcome\",\"protocol\":2,\"selfName\":\"Steve\"}"));
+        assertEquals(2, state.view().protocol());
+        assertEquals("Steve", state.view().selfName());
+        state.apply(json("{\"t\":\"avatar\",\"id\":\"u1\",\"png\":\"iVBORw0KGgoAAAA=\"}"));
+        state.apply(json("{\"t\":\"result\",\"req\":\"r1\",\"ok\":true}"));
+        assertEquals("u1", state.takeAvatar().id());
+        assertNull(state.takeAvatar());
+        assertTrue(state.takeResult().ok());
+        state.apply(json("{\"t\":\"friends\",\"online\":[{\"id\":\"u1\",\"name\":\"A\"}],\"offline\":1}"));
+        assertEquals(1, state.view().friends().online().size());
+        state.setConnected(false);
+        assertTrue(state.view().friends().online().isEmpty());
+        assertEquals(0, state.view().protocol());
     }
 }
