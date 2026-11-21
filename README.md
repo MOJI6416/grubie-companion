@@ -13,6 +13,41 @@ The interface is drawn by the mod itself (Rubik, the Grubie colours, rounded pan
 
 Without the launcher the mod does nothing: it starts only when the game was launched with `GRUBIE_COMPANION_ADDRESS` and `GRUBIE_COMPANION_TOKEN` in the environment. Fabric API is not needed.
 
+## Screenshots
+
+**The friends panel on <kbd>G</kbd>: who is online, invites and Play Together hosting**
+
+<p>
+  <img src="docs/screenshots/friends-panel.png" width="49%" alt="The Friends tab: an invite from Alex with Accept, Decline and F7, five friends online with their status">
+  <img src="docs/screenshots/play-together.png" width="49%" alt="The Play together tab: the world is open to friends, two guests with their connection and ping, one friend invited">
+</p>
+
+**Voice chat in the panel, and the mod's settings**
+
+<p>
+  <img src="docs/screenshots/voice-panel.png" width="49%" alt="The Voice tab: the channel, Mute and Deafen, the push-to-talk key and the members, the one talking ringed in green">
+  <img src="docs/screenshots/settings.png" width="49%" alt="The settings: screenshots, achievements, messages, voice avatars, pause buttons and click sounds">
+</p>
+
+**Toasts: an invite (<kbd>F7</kbd> accepts), a message, an achievement and a screenshot you just took**
+
+![Four toasts in the top right corner of the game: an invite from Alex, a message from Mira, the Explorer achievement and a saved screenshot](docs/screenshots/toasts.png)
+
+**Who is talking in Grubie voice chat, and your mute state**
+
+![The voice indicator in the top left corner: friends' avatars, a green ring around the one talking, a crossed-out microphone](docs/screenshots/voice.png)
+
+**Grubie buttons under the pause menu**
+
+![The pause menu with a Grubie row under it: Invite a friend and the friends panel key](docs/screenshots/pause-menu.png)
+
+**Invite a friend to your world, or send them the screenshot you took with <kbd>F2</kbd>, offline friends too**
+
+<p>
+  <img src="docs/screenshots/invite-friend.png" width="49%" alt="Invite a friend: online friends with Invite buttons, Mira already invited">
+  <img src="docs/screenshots/send-screenshot.png" width="49%" alt="Send the screenshot: a preview and every friend, online and offline, with a Send button, Alex already sent">
+</p>
+
 ## Supported versions
 
 One jar per Minecraft line and loader. Quilt uses the Fabric jar. The Forge 1.20.1 jar also serves NeoForge 1.20.1.
