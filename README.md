@@ -106,7 +106,7 @@ The active version for the IDE is `1.21.1-fabric`; switch it with the Stonecutte
 - **Build** — core tests and every jar, in four parallel groups, merged into one `companion-release` artifact (`build/release/<version>/`).
 - **Runtime** — weekly and on demand: runs the real client headless ([mc-runtime-test](https://github.com/headlesshq/mc-runtime-test)) for each jar and release, with a stand-in launcher (`scripts/ci-bridge.py`) that sends friends, voice and toasts. The mod connects, renders the toasts and the voice indicator, opens the panel twice and reports `selftest`. The job fails if the game crashes or the mod never reports being in the world.
 - **Watch Minecraft releases** — every six hours.
-- **Release draft** — on a `v*` tag: builds everything and uploads the jars and `targets.json` to a draft GitHub release.
+- **Release** — on a `v*` tag: builds everything and publishes a GitHub release with the jars and `targets.json`.
 
 ## New Minecraft versions
 
@@ -120,7 +120,7 @@ To finish a new line by hand: find what changed with `javap` on the remapped jar
 
 ## Releasing
 
-A `v<version>` tag builds every jar into a draft GitHub release. Grubie Launcher does not bundle the mod: it downloads the jar for the instance's version and loader from the Grubie servers and checks it against a signed list before the game starts.
+A `v<version>` tag builds every jar and publishes them in a GitHub release. A published release never changes: a fix is a new version. Grubie Launcher does not bundle the mod: it downloads the jar for the instance's version and loader from the Grubie servers and checks it against a signed list before the game starts.
 
 ## Protocol
 

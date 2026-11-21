@@ -1,4 +1,4 @@
-name: Release draft
+name: Release
 
 on:
   push:
@@ -12,7 +12,7 @@ jobs:
   build:
     uses: ./.github/workflows/build.yml
 
-  draft:
+  release:
     needs: build
     runs-on: ubuntu-latest
     steps:
@@ -22,16 +22,32 @@ jobs:
           name: companion-release
           path: build/release
       - name: Check the tag matches the mod version
-        if: startsWith(github.ref, 'refs/tags/')
-        run: test "${GITHUB_REF_NAME#v}" = "${{ needs.build.outputs.version }}"
-      - name: Create the draft release
+        run: |
+          if [ "$GITHUB_REF_TYPE" != "tag" ]; then
+            echo "::error::Run this workflow on a v<version> tag."
+            exit 1
+          fi
+          test "${GITHUB_REF_NAME#v}" = "$VERSION"
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+      - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build.outputs.version }}
         run: |
-          version="${{ needs.build.outputs.version }}"
-          tag="v$version"
-          dir="build/release/$version"
-          if ! gh release view "$tag" >/dev/null 2>&1; then
-            gh release create "$tag" --draft --title "Grubie Companion $version" --notes "Jars for every supported Minecraft version and loader."
-          fi
+          tag="v$VERSION"
+          dir="build/release/$VERSION"
+          draft="$(gh release view "$tag" --json isDraft --jq .isDraft 2>/dev/null || echo missing)"
+          case "$draft" in
+            missing)
+              gh release create "$tag" --draft --verify-tag --title "Grubie Companion $VERSION" --notes "Jars for every supported Minecraft version and loader."
+              ;;
+            true)
+              ;;
+            *)
+              echo "::error::$tag is already published. Published jars never change: release a new version."
+              exit 1
+              ;;
+          esac
           gh release upload "$tag" "$dir"/*.jar "$dir/targets.json" --clobber
+          gh release edit "$tag" --draft=false
