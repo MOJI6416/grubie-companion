@@ -37,7 +37,7 @@
   "grubie_companion.play.noWorld": "You are not in a world",
   "grubie_companion.play.noWorldHint": "Enter a world or join a server to play together.",
   "grubie_companion.play.yourWorld": "Your world",
-  "grubie_companion.play.sharedTitle": "«%s» is open to friends",
+  "grubie_companion.play.sharedTitle": "“%s” is open to friends",
   "grubie_companion.play.visibility.friends": "Friends can join",
   "grubie_companion.play.visibility.link": "Anyone with the link can join",
   "grubie_companion.play.visibility.public": "Anyone can join",
