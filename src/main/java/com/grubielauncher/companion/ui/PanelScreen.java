@@ -79,7 +79,7 @@ public final class PanelScreen extends Screen {
     }
 
     private boolean click(double x, double y, int button) {
-        if (button != 0 || ui == null || closing) return false;
+        if (button != Mc.MOUSE_LEFT || ui == null || closing) return false;
         float ux = (float) x * toUnits;
         float uy = (float) y * toUnits;
         if (ui.press(ux, uy)) {

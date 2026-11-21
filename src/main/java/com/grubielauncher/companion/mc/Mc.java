@@ -35,9 +35,11 @@ public final class Mc {
     //? if >=26.3 {
     /*public static final int KEY_G = InputConstants.KEY_G;
     public static final int KEY_F7 = InputConstants.KEY_F7;
+    public static final int MOUSE_LEFT = InputConstants.MOUSE_BUTTON_LEFT;
     *///?} else {
     public static final int KEY_G = 71;
     public static final int KEY_F7 = 296;
+    public static final int MOUSE_LEFT = 0;
     //?}
 
     private Mc() {

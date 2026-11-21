@@ -1,6 +1,6 @@
 mod.id = "grubie_companion"
 mod.name = "Grubie Companion"
-mod.version = "2.0.0"
+mod.version = "2.0.1"
 mod.protocol = "2"
 deps.fabric_loader = "0.20.1"
 mod.alias_loader = ""
